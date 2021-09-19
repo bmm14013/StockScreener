@@ -3,14 +3,13 @@ import API_keys
 import API_urls
 import requests
 import pandas as pd
-import time
 
 class StockScreenerEngine:
     """
     This class represents a stock screener object.
     """
 
-    def __init__(self, API_key, instruments_url, quotes_url):
+    def __init__(self, API_key=API_keys.ameritrade_API_key, instruments_url=API_urls.instruments_url, quotes_url=API_urls.quotes_url):
         """
         Initializes StockScreenerEngine with stock data from all stocks in NASDAQ, NYSE, and NASDAQ.
 
