@@ -58,7 +58,7 @@ class StockScreenerEngine:
             end += 500
 
         #Create dataframe of all data 
-        quotes_data_params = ['symbol','regularMarketLastPrice','lastPrice','totalVolume']
+        quotes_data_params = ['symbol','regularMarketLastPrice','lastPrice','regularMarketNetChange','totalVolume']
         fundamental_df = pd.DataFrame(self._fundamental_data).sort_values(by = ['symbol'], ignore_index=True)
         quotes_df = pd.DataFrame(self._quotes_data, columns = quotes_data_params).sort_values(by = ['symbol'],ignore_index=True).drop('symbol',1)
         self._all_stock_data = pd.concat([fundamental_df,quotes_df],axis=1)
@@ -70,9 +70,9 @@ class StockScreenerEngine:
         """
         return self._all_stock_data
     
-    def get_query_results(self):
+    def get_query_results(self, columns_list = ['symbol','description','marketCap', 'regularMarketLastPrice','regularMarketNetChange','peRatio','totalVolume']):
         "Returns query results"
-        return self._query_results
+        return self._query_results[columns_list]
 
     def reset_query(self):
         "Resets query results"
@@ -98,9 +98,6 @@ class StockScreenerEngine:
         """
         self._query_results = self._query_results.sort_values(by = [atribute], ascending=is_ascending, ignore_index=True)
 
-screener = StockScreenerEngine(API_keys.ameritrade_API_key, API_urls.instruments_url, API_urls.quotes_url)
-screener.query(exchange = 'NYSE', totalVolume = [0,4000])
-screener.sort_query_results('totalVolume')
-print(screener.get_query_results())
+
 
 
