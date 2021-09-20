@@ -158,6 +158,9 @@ def display_query(screener):
     window = sg.Window('Stock Screener', layout)
     event, values = window.read()
 
+    if event == sg.WIN_CLOSED:
+        return
+
     #Get new filters
     if event == 'Reset Filters':
         screener.reset_query()
