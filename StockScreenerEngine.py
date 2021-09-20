@@ -1,5 +1,5 @@
 #Author: Brendan MacIntyre
-#Date: 9/19/2021
+#Date: 9/20/2021
 #Description: This program serves as back end stock screener engine. It pulls stock info 
 #              from the TD Ameritrade APIs and allows a user to filter and sort the data.
 
@@ -17,10 +17,13 @@ def authenticate_API_key(key):
         key: User's API key
     
     Returns:
-        True if API key works, and False if API key is invalid
+        True if API key works, and False if API key is invalid.
     """
+    #Get test request
     test_params = {'apikey': key, 'symbol': 'AAPL'}
     test_result = requests.get(API_urls.quotes_url, params = test_params)
+   
+    #Test request returned an invalid response
     if "invalid" in test_result.text.lower():
         return False
     else:
@@ -32,9 +35,9 @@ class StockScreenerEngine:
     This class represents a stock screener object.
     Main methods to use are as follows:
 
-    query: Query stock data based on inputted atributes.
-    sort_query_results: Sorts query results based on attribute given.
-    get_query_results: Returns the query results dataframe.
+    query: Query stock data based on inputted atributes
+    sort_query_results: Sorts query results based on attribute given
+    get_query_results: Returns the query results dataframe
     """
 
     def __init__(self, API_key, instruments_url=API_urls.instruments_url, 
@@ -43,11 +46,10 @@ class StockScreenerEngine:
         Initializes StockScreenerEngine with dataframe of stock data from all stocks in NASDAQ, NYSE, and AMEX.
 
         Args:
-            API_key: A string containing the key to access the TD Ameritrade APIs. Default is set to 
-                     a private python file/module. Must enter your own API key here.
-            instruments_url: API resource url to get instrument/fundamental data. Default set to current url (9/9/2021).
-            quotes_url: API resource url to get quote data. Default set to current url (9/19/2021).
-            progress_bar: Set to True if user wants progress bar to be displayed during init. Default set to True.
+            API_key: A string containing the key to access the TD Ameritrade APIs
+            instruments_url: API resource url to get instrument/fundamental data, default set to current url (9/9/2021)
+            quotes_url: API resource url to get quote data, default set to current url (9/19/2021)
+            progress_bar: Set to True if user wants progress bar to be displayed during init, default set to True
         """
         #Initialize API
         self._key = API_key
@@ -56,7 +58,7 @@ class StockScreenerEngine:
         self._cancelled = False
         
         #Get all unique tickers on NYSE, NASDAQ, AMEX 
-        self._all_tickers = list(set(gt.get_tickers()))[:1000]
+        self._all_tickers = list(set(gt.get_tickers()))
         #Format tickers
         for index in range(len(self._all_tickers)):
             self._all_tickers[index] = self._all_tickers[index].replace("/",".")
@@ -74,10 +76,9 @@ class StockScreenerEngine:
                                                    'Loading stock data, please wait...', orientation='h'):
                     self._cancelled = True
                     break
-
-            tickers = self._all_tickers[start:end]
             
             #API params and results
+            tickers = self._all_tickers[start:end]
             API_instruments_params = {'apikey': self._key, 'symbol': tickers, 'projection': 'fundamental'}
             API_quotes_params = {'apikey': self._key, 'symbol': ",".join(tickers)}
             instrument_results = requests.get(self._instruments_url, params=API_instruments_params).json()
@@ -90,28 +91,35 @@ class StockScreenerEngine:
             #Unpack data
             for ticker in instrument_results:
                 fundamental_data = instrument_results[ticker]['fundamental']
+                #Add description and exchange attributes
                 fundamental_data['description'] = instrument_results[ticker]['description']
                 fundamental_data['exchange'] = instrument_results[ticker]['exchange']
                 self._fundamental_data.append(fundamental_data)
             for ticker in quote_results:
                 self._quotes_data.append(quote_results[ticker])
             
+            #Next set of tickers
             start = end
             end += 500
 
         #Create dataframe of all data 
-        quotes_data_params = ['symbol','regularMarketLastPrice','lastPrice','regularMarketNetChange','totalVolume']
+        quotes_data_params = ['symbol','regularMarketLastPrice','lastPrice','regularMarketPercentChangeInDouble','totalVolume']
         fundamental_df = pd.DataFrame(self._fundamental_data).sort_values(by = ['symbol'], ignore_index=True)
         quotes_df = pd.DataFrame(self._quotes_data, columns = quotes_data_params).sort_values(by = ['symbol'],ignore_index=True).drop('symbol',1)
         self._all_stock_data = pd.concat([fundamental_df,quotes_df],axis=1)
-        #Set default query results if no filters set
+        new_column_names = {"symbol": "Symbol", "description": "Description", "exchange": "Exchange", "marketCap": "Market Cap (Millions)",
+                            "regularMarketLastPrice": "Price", "regularMarketPercentChangeInDouble": "Percent Change",
+                            "peRatio": "P/E", "totalVolume": "Volume"}
+        self._all_stock_data.rename(columns = new_column_names, inplace=True)
+        
+        #Set default query results
         self._query_results = self._all_stock_data.copy()
 
         #Close progress bar
         if progress_bar:
             sg.one_line_progress_meter_cancel()
     
-    
+
     def init_cancelled(self):
         """
         Returns True if the progress bar window was cancelled mid initialization.
@@ -126,36 +134,36 @@ class StockScreenerEngine:
         return self._all_stock_data
     
 
-    def get_query_results(self, columns_list = ['symbol','description','exchange','marketCap','regularMarketLastPrice','regularMarketNetChange','peRatio','totalVolume']):
+    def get_query_results(self, columns_list = ['Symbol','Description','Exchange','Market Cap (Millions)','Price','Percent Change','P/E','Volume']):
         """
         Returns dataframe of query results with specified attributes to display. 
 
         Args:
-            columns_list: Attributes to display in dataframe. Default set to display symbol, description,
+            columns_list: Attributes to display in dataframe, default set to display symbol, description,
             market cap, %change, P/E, and volume
         """
         return self._query_results[columns_list]
 
 
     def reset_query(self):
-        "Resets query results"
+        """"
+        Resets query results.
+        """
         self._query_results = self.get_all_stock_data().copy()
 
 
     def available_filters(self):
         """
-        Returns the currently available query filters
+        Returns the currently available query filters for GUI.
         """
-        filters = ['symbol','description','exchange','marketCap','regularMarketLastPrice',
-                    'regularMarketNetChange','peRatio','totalVolume']
-
+        filters = ['Symbol','Description','Exchange','Market Cap (Millions)','Price','Percent Change','P/E','Volume']
         return filters
 
 
     def query(self, **kwargs):
         """
         Queries stock data based on arguments given. 
-        Ex). self.query(exchange = 'NASDAQ', totalVolume = [0,20000])
+        Ex). self.query(Exchange = 'NASDAQ', Volume = [0,20000])
 
         Keyword Args:
             Attributes to filter by
@@ -179,15 +187,10 @@ class StockScreenerEngine:
 
     def sort_query_results(self, atribute, is_ascending = True):
         """
-        Sorts query results based on attribute given. Sorts in ascending or descending order
+        Sorts query results based on attribute given. Sorts in ascending or descending order.
 
         Args:
             atribute: String of column name to sort by.
             is_ascending: True (default) if ascending order and False if descending order is desired
         """
         self._query_results = self._query_results.sort_values(by = [atribute], ascending=is_ascending, ignore_index=True)
-
-
-
-
-
