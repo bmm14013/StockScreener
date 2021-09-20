@@ -26,7 +26,7 @@ After stock data has been loaded, you will be taken to a query screen:
 
 Here you can select what filters you want to screen for. You can select multiple filters.
 
-String filters (like Symbol and Exchange) will return all data matching the filter. For example searching for a symbol, "AB", will return all stocks whose symbol contains the string "AB". 
+String filters (like Symbol and Exchange) will return all data matching the filter. For example searching for a symbol, "AB", will return all stocks whose symbol contains the string "AB". Case is ignored.
 
 Numerical filters (like Price and Volume) will return all data between the min and max values (inclusive).  For example, if you wanted to screen for stocks with a price of at least $10, you would select the Price filter and enter 10 in the min box. 
 
