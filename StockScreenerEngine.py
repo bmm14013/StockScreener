@@ -1,13 +1,31 @@
 #Author: Brendan MacIntyre
 #Date: 9/19/2021
 #Description: This program serves as back end stock screener engine. It pulls stock info 
-#              from the TD Ameritrade API and allows a user to filter and sort the data.
+#              from the TD Ameritrade APIs and allows a user to filter and sort the data.
 
 from get_all_tickers import get_tickers as gt
-import API_keys
 import API_urls
 import requests
 import pandas as pd
+import PySimpleGUI as sg
+
+def authenticate_API_key(key):
+    """
+    Creates a test response using API key, and checks that API key is functional. 
+
+    Args:
+        key: User's API key
+    
+    Returns:
+        True if API key works, and False if API key is invalid
+    """
+    test_params = {'apikey': key, 'symbol': 'AAPL'}
+    test_result = requests.get(API_urls.quotes_url, params = test_params)
+    if "invalid" in test_result.text.lower():
+        return False
+    else:
+        return True
+
 
 class StockScreenerEngine:
     """
@@ -19,23 +37,26 @@ class StockScreenerEngine:
     get_query_results: Returns the query results dataframe.
     """
 
-    def __init__(self, API_key=API_keys.ameritrade_API_key, instruments_url=API_urls.instruments_url, quotes_url=API_urls.quotes_url):
+    def __init__(self, API_key, instruments_url=API_urls.instruments_url, 
+                 quotes_url=API_urls.quotes_url, progress_bar = True):
         """
         Initializes StockScreenerEngine with dataframe of stock data from all stocks in NASDAQ, NYSE, and AMEX.
 
         Args:
-            API_key: A string containing the key to access the TD Ameritrade API. Default is set to 
+            API_key: A string containing the key to access the TD Ameritrade APIs. Default is set to 
                      a private python file/module. Must enter your own API key here.
             instruments_url: API resource url to get instrument/fundamental data. Default set to current url (9/9/2021).
             quotes_url: API resource url to get quote data. Default set to current url (9/19/2021).
+            progress_bar: Set to True if user wants progress bar to be displayed during init. Default set to True.
         """
         #Initialize API
         self._key = API_key
         self._instruments_url = instruments_url
         self._quotes_url = quotes_url
+        self._cancelled = False
         
         #Get all unique tickers on NYSE, NASDAQ, AMEX 
-        self._all_tickers = list(set(gt.get_tickers()))
+        self._all_tickers = list(set(gt.get_tickers()))[:1000]
         #Format tickers
         for index in range(len(self._all_tickers)):
             self._all_tickers[index] = self._all_tickers[index].replace("/",".")
@@ -47,6 +68,13 @@ class StockScreenerEngine:
         self._quotes_data = []
         #Get stock fundamental data and price quotes
         while start < len(self._all_tickers):
+            #Display progress bar
+            if progress_bar:
+                if not sg.one_line_progress_meter('Stock Screener', len(self._quotes_data), len(self._all_tickers),
+                                                   'Loading stock data, please wait...', orientation='h'):
+                    self._cancelled = True
+                    break
+
             tickers = self._all_tickers[start:end]
             
             #API params and results
@@ -79,6 +107,17 @@ class StockScreenerEngine:
         #Set default query results if no filters set
         self._query_results = self._all_stock_data.copy()
 
+        #Close progress bar
+        if progress_bar:
+            sg.one_line_progress_meter_cancel()
+    
+    
+    def init_cancelled(self):
+        """
+        Returns True if the progress bar window was cancelled mid initialization.
+        """
+        return self._cancelled
+        
 
     def get_all_stock_data(self):
         """
@@ -87,7 +126,7 @@ class StockScreenerEngine:
         return self._all_stock_data
     
 
-    def get_query_results(self, columns_list = ['symbol','description','marketCap', 'regularMarketLastPrice','regularMarketNetChange','peRatio','totalVolume']):
+    def get_query_results(self, columns_list = ['symbol','description','exchange','marketCap','regularMarketLastPrice','regularMarketNetChange','peRatio','totalVolume']):
         """
         Returns dataframe of query results with specified attributes to display. 
 
@@ -101,6 +140,16 @@ class StockScreenerEngine:
     def reset_query(self):
         "Resets query results"
         self._query_results = self.get_all_stock_data().copy()
+
+
+    def available_filters(self):
+        """
+        Returns the currently available query filters
+        """
+        filters = ['symbol','description','exchange','marketCap','regularMarketLastPrice',
+                    'regularMarketNetChange','peRatio','totalVolume']
+
+        return filters
 
 
     def query(self, **kwargs):
@@ -117,8 +166,10 @@ class StockScreenerEngine:
             filter_by = arg
             filter = kwargs.get(arg)
             if type(filter) == str:
-                self._query_results = self._query_results[self._query_results[filter_by] == filter]
+                #String filter
+                self._query_results = self._query_results[self._query_results[filter_by].str.contains(filter, case = False)]
             if type(filter) == list:
+                #Numerical filter
                 min = filter[0]
                 max = filter[1]
                 self._query_results = self._query_results[(self._query_results[filter_by] >= min) & (self._query_results[filter_by] <= max)]
@@ -135,6 +186,7 @@ class StockScreenerEngine:
             is_ascending: True (default) if ascending order and False if descending order is desired
         """
         self._query_results = self._query_results.sort_values(by = [atribute], ascending=is_ascending, ignore_index=True)
+
 
 
 
