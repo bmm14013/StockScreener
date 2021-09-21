@@ -5,7 +5,7 @@ A stock screener for NASDAQ, NYSE, and AMEX exchanges. Stock data is pulled from
 *Note that data is delayed
 
 ## How to Use: Running the Program
-To run the program either open the .exe file or run the StockScreenerGUI python file. If running the .py file, you will need to have python and the following modules installed:
+To run the program either open the .exe file (see [releases](https://github.com/bmm14013/StockScreener/releases/tag/v0.1)) or run the StockScreenerGUI python file. If running the .py file, you will need to have python and the following modules installed:
 * [pandas](https://pypi.org/project/pandas/)
 * [requests](https://pypi.org/project/requests/)
 * [PySimpleGUI](https://pypi.org/project/PySimpleGUI/)
